@@ -1,0 +1,36 @@
+# Python cache and build output
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/.venv/
+env/python/
+
+# Local runtime data
+downloads/
+env/config.toml
+env/*.sqlite3
+env/*.db
+env/*.log
+env/*.exe
+files/*.xlsx
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+
+logs/

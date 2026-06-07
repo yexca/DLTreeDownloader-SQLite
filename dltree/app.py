@@ -18,7 +18,7 @@ from .exceptions import (
 )
 from .filesystem import get_disk_usage_for_output, nearest_existing_parent, resolve_output_dir
 from .importer import ImportResult, import_excel_workbook
-from .mega import check_login, command_available, run_mega_get
+from .mega import check_login, command_available, resolve_command, run_mega_get
 from .models import DownloadHistory, DownloadRequest, LinkRecord, WorkRecord
 from .repositories import (
     create_download,
@@ -264,20 +264,22 @@ def doctor(config_path: Path = DEFAULT_CONFIG_PATH) -> DoctorResult:
     except Exception as exc:
         checks.append(DoctorCheck("Downloads", False, str(exc)))
 
-    mega_get_ok = command_available(config.mega.mega_get)
-    mega_whoami_ok = command_available(config.mega.mega_whoami)
+    mega_get_command = resolve_command(config.mega.mega_get)
+    mega_whoami_command = resolve_command(config.mega.mega_whoami)
+    mega_get_ok = mega_get_command is not None
+    mega_whoami_ok = mega_whoami_command is not None
     checks.append(
         DoctorCheck(
             "mega-get",
             mega_get_ok,
-            "available" if mega_get_ok else f"command not found: {config.mega.mega_get}",
+            mega_get_command if mega_get_command is not None else f"command not found: {config.mega.mega_get}",
         )
     )
     checks.append(
         DoctorCheck(
             "mega-whoami",
             mega_whoami_ok,
-            "available" if mega_whoami_ok else f"command not found: {config.mega.mega_whoami}",
+            mega_whoami_command if mega_whoami_command is not None else f"command not found: {config.mega.mega_whoami}",
         )
     )
 

@@ -9,6 +9,7 @@
 3. `data_contract.md`
 4. `extension_points.md`
 5. `testing_guide.md`
+6. `megacmd_resolution.md`
 
 ## 文档定位
 

@@ -7,6 +7,7 @@ import pytest
 from dltree import app
 from dltree.app import (
     calculate_required_bytes,
+    doctor,
     execute_download_plan,
     prepare_download,
     select_download_links,
@@ -146,6 +147,28 @@ def test_calculate_required_bytes_uses_percent_margin_when_larger(tmp_path):
     assert selected_bytes == 150
     assert margin_bytes == 15
     assert required_bytes == 165
+
+
+def test_doctor_reports_resolved_megacmd_paths(tmp_path, monkeypatch):
+    config_path = write_config(tmp_path)
+    seed_work(config_path, tmp_path)
+
+    def fake_resolve_command(executable):
+        commands = {
+            "mega-get": "C:\\Users\\me\\AppData\\Local\\MEGAcmd\\mega-get.exe",
+            "mega-whoami": "C:\\Users\\me\\AppData\\Local\\MEGAcmd\\mega-whoami.exe",
+        }
+        return commands.get(executable)
+
+    monkeypatch.setattr(app, "resolve_command", fake_resolve_command)
+    monkeypatch.setattr(app, "check_login", lambda executable: MegaCheckResult(True))
+
+    result = doctor(config_path)
+
+    messages = {check.name: check.message for check in result.checks}
+    assert result.ok is True
+    assert messages["mega-get"].endswith("MEGAcmd\\mega-get.exe")
+    assert messages["mega-whoami"].endswith("MEGAcmd\\mega-whoami.exe")
 
 
 def test_prepare_download_reports_only_par2_files_without_external_checks(

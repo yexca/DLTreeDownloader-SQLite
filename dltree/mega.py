@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -24,13 +25,36 @@ class MegaRunResult:
 
 
 def command_available(executable: str) -> bool:
-    return shutil.which(executable) is not None
+    return resolve_command(executable) is not None
+
+
+def resolve_command(executable: str) -> str | None:
+    executable = executable.strip()
+    if not executable:
+        return None
+
+    expanded = Path(executable).expanduser()
+    if _looks_like_path(executable):
+        return _resolve_path_candidate(expanded)
+
+    found = shutil.which(executable)
+    if found is not None:
+        return found
+
+    if _is_windows():
+        for directory in _windows_megacmd_dirs():
+            resolved = _resolve_path_candidate(directory / executable)
+            if resolved is not None:
+                return resolved
+
+    return None
 
 
 def check_login(mega_whoami: str, timeout_seconds: int = 30) -> MegaCheckResult:
+    command = resolve_command(mega_whoami) or mega_whoami
     try:
         completed = subprocess.run(
-            [mega_whoami],
+            _subprocess_args(command),
             check=False,
             capture_output=True,
             text=True,
@@ -65,8 +89,9 @@ def run_mega_get(
     output_dir: Path,
     timeout_seconds: int | None = None,
 ) -> MegaRunResult:
+    command = resolve_command(mega_get) or mega_get
     completed = subprocess.run(
-        [mega_get, mega_url, str(output_dir)],
+        _subprocess_args(command, mega_url, str(output_dir)),
         check=False,
         capture_output=True,
         text=True,
@@ -78,3 +103,48 @@ def run_mega_get(
         stdout=completed.stdout,
         stderr=completed.stderr,
     )
+
+
+def _subprocess_args(command: str, *args: str) -> list[str]:
+    if _is_windows() and Path(command).suffix.casefold() in {".bat", ".cmd"}:
+        return [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", "call", command, *args]
+    return [command, *args]
+
+
+def _resolve_path_candidate(path: Path) -> str | None:
+    for candidate in _path_candidates(path):
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def _path_candidates(path: Path) -> tuple[Path, ...]:
+    if path.suffix or not _is_windows():
+        return (path,)
+
+    extensions = os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";")
+    return tuple(path.with_suffix(extension.lower()) for extension in extensions if extension)
+
+
+def _windows_megacmd_dirs() -> tuple[Path, ...]:
+    values = [
+        os.environ.get("LOCALAPPDATA"),
+        os.environ.get("ProgramFiles"),
+        os.environ.get("ProgramFiles(x86)"),
+    ]
+    paths = [Path(value) / "MEGAcmd" for value in values if value]
+
+    try:
+        paths.append(Path.home() / "AppData" / "Local" / "MEGAcmd")
+    except RuntimeError:
+        pass
+
+    return tuple(dict.fromkeys(paths))
+
+
+def _looks_like_path(value: str) -> bool:
+    return any(separator in value for separator in ("/", "\\")) or Path(value).is_absolute()
+
+
+def _is_windows() -> bool:
+    return os.name == "nt"

@@ -3,7 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 import subprocess
 
-from dltree.mega import check_login, run_mega_get
+from dltree import mega as mega_module
+from dltree.mega import check_login, command_available, resolve_command, run_mega_get
 
 
 class Completed:
@@ -37,6 +38,48 @@ def test_check_login_calls_mega_whoami_and_reports_logged_in(monkeypatch):
             },
         )
     ]
+
+
+def test_command_available_resolves_path_from_shutil_which(monkeypatch):
+    monkeypatch.setattr(
+        mega_module.shutil,
+        "which",
+        lambda executable: "C:\\Tools\\mega-whoami.exe" if executable == "mega-whoami" else None,
+    )
+
+    assert command_available("mega-whoami") is True
+    assert resolve_command("mega-whoami") == "C:\\Tools\\mega-whoami.exe"
+
+
+def test_resolve_command_finds_windows_megacmd_install_dir(tmp_path, monkeypatch):
+    install_dir = tmp_path / "MEGAcmd"
+    install_dir.mkdir()
+    executable = install_dir / "mega-whoami.exe"
+    executable.write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(mega_module, "_is_windows", lambda: True)
+    monkeypatch.setattr(mega_module.shutil, "which", lambda executable: None)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.delenv("ProgramFiles", raising=False)
+    monkeypatch.delenv("ProgramFiles(x86)", raising=False)
+
+    assert resolve_command("mega-whoami") == str(executable)
+
+
+def test_check_login_uses_resolved_command(monkeypatch):
+    calls = []
+
+    def fake_run(args, **kwargs):
+        calls.append(args)
+        return Completed(0, stdout="Account: user@example.com")
+
+    monkeypatch.setattr(mega_module, "resolve_command", lambda executable: "C:\\Tools\\mega-whoami.exe")
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = check_login("mega-whoami")
+
+    assert result.ok is True
+    assert calls == [["C:\\Tools\\mega-whoami.exe"]]
 
 
 def test_check_login_reports_logged_out_marker(monkeypatch):

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 import os
 from pathlib import Path
 import shutil
 import subprocess
+import threading
 
 
 @dataclass(frozen=True)
@@ -88,8 +90,18 @@ def run_mega_get(
     mega_url: str,
     output_dir: Path,
     timeout_seconds: int | None = None,
+    output_callback: Callable[[str], None] | None = None,
 ) -> MegaRunResult:
     command = resolve_command(mega_get) or mega_get
+    if output_callback is not None:
+        return _run_mega_get_streaming(
+            command,
+            mega_url,
+            output_dir,
+            timeout_seconds,
+            output_callback,
+        )
+
     completed = subprocess.run(
         _subprocess_args(command, mega_url, str(output_dir)),
         check=False,
@@ -103,6 +115,75 @@ def run_mega_get(
         stdout=completed.stdout,
         stderr=completed.stderr,
     )
+
+
+def _run_mega_get_streaming(
+    command: str,
+    mega_url: str,
+    output_dir: Path,
+    timeout_seconds: int | None,
+    output_callback: Callable[[str], None],
+) -> MegaRunResult:
+    process = subprocess.Popen(
+        _subprocess_args(command, mega_url, str(output_dir)),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+    )
+    stdout_parts: list[str] = []
+    stderr_parts: list[str] = []
+
+    stdout_thread = threading.Thread(
+        target=_read_stream,
+        args=(process.stdout, stdout_parts, output_callback),
+    )
+    stderr_thread = threading.Thread(
+        target=_read_stream,
+        args=(process.stderr, stderr_parts, output_callback),
+    )
+    stdout_thread.start()
+    stderr_thread.start()
+
+    try:
+        exit_code = process.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired as exc:
+        process.kill()
+        exit_code = process.wait()
+        stdout_thread.join()
+        stderr_thread.join()
+        raise subprocess.TimeoutExpired(
+            exc.cmd,
+            exc.timeout,
+            output="".join(stdout_parts),
+            stderr="".join(stderr_parts),
+        ) from exc
+
+    stdout_thread.join()
+    stderr_thread.join()
+    return MegaRunResult(
+        ok=exit_code == 0,
+        exit_code=exit_code,
+        stdout="".join(stdout_parts),
+        stderr="".join(stderr_parts),
+    )
+
+
+def _read_stream(
+    stream,
+    output_parts: list[str],
+    output_callback: Callable[[str], None],
+) -> None:
+    if stream is None:
+        return
+
+    with stream:
+        while True:
+            chunk = stream.read(1)
+            if chunk == "":
+                break
+            output_parts.append(chunk)
+            output_callback(chunk)
 
 
 def _subprocess_args(command: str, *args: str) -> list[str]:

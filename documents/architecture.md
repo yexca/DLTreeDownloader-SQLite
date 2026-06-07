@@ -23,6 +23,7 @@ CLI layer：
 
 - 解析命令和参数。
 - 展示 Rich 表格。
+- 在下载时转发 MEGAcmd 进程输出，让用户能看到实时进度。
 - 捕获异常并转换退出码。
 
 Application services：
@@ -79,7 +80,7 @@ CLI query -> search service -> repositories -> result DTO -> Rich table
 下载：
 
 ```text
-work_code -> work + active links -> selected links -> checks -> mega-get -> downloads row
+work_code -> work + active links -> selected links -> checks -> mega-get + streamed output -> downloads row
 ```
 
 ## 5. 不推荐的实现方式

@@ -244,7 +244,13 @@ def download_command(
         console.print("[yellow]Download cancelled.[/yellow]")
         return
 
-    result = _call_with_errors(execute_download_plan, plan, config_path=config)
+    console.print("[cyan]MEGAcmd output:[/cyan]")
+    result = _call_with_errors(
+        execute_download_plan,
+        plan,
+        config_path=config,
+        output_callback=_print_process_output,
+    )
     console.print(f"[green]{result.message}[/green]")
 
 
@@ -342,6 +348,11 @@ def _format_download_record(record: DownloadHistory) -> str:
 
 def _display(value: object | None) -> str:
     return str(value) if value not in (None, "") else "-"
+
+
+def _print_process_output(text: str) -> None:
+    console.file.write(text)
+    console.file.flush()
 
 
 def _call_with_errors(function, *args, **kwargs):

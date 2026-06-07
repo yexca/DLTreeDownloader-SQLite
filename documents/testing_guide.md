@@ -84,6 +84,7 @@ tmp_path / "dltree.sqlite3"
 mock：
 
 - `subprocess.run`
+- `subprocess.Popen`
 - `shutil.disk_usage`
 - `shutil.which`
 
@@ -96,6 +97,7 @@ mock：
 - include `.par2`。
 - `mega-get` 成功。
 - `mega-get` 失败。
+- `mega-get` 下载期间 stdout/stderr 能通过输出回调实时转发到 CLI。
 
 ## 6. 验收测试
 

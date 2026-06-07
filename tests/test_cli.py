@@ -139,8 +139,10 @@ def test_cli_download_yes_succeeds_with_mock_megacmd(tmp_path, monkeypatch):
         lambda output_dir: DiskUsage(output_dir, 2 * 1024 * 1024 * 1024),
     )
 
-    def fake_mega_get(mega_get, mega_url, output_dir):
+    def fake_mega_get(mega_get, mega_url, output_dir, output_callback=None):
         calls.append((mega_get, mega_url, output_dir))
+        if output_callback is not None:
+            output_callback("done\n")
         return MegaRunResult(True, 0, stdout="done")
 
     monkeypatch.setattr(app_module, "run_mega_get", fake_mega_get)
@@ -148,6 +150,8 @@ def test_cli_download_yes_succeeds_with_mock_megacmd(tmp_path, monkeypatch):
     result = runner.invoke(cli, ["download", "RJ001", "--yes"])
 
     assert result.exit_code == 0
+    assert "MEGAcmd output" in result.output
+    assert "done" in result.output
     assert "Downloaded 1 files" in result.output
     assert [call[1] for call in calls] == ["https://mega.nz/file/main"]
 
@@ -170,7 +174,11 @@ def test_cli_download_plan_reports_previous_completed_download(tmp_path, monkeyp
     monkeypatch.setattr(
         app_module,
         "run_mega_get",
-        lambda mega_get, mega_url, output_dir: MegaRunResult(True, 0, stdout="done"),
+        lambda mega_get, mega_url, output_dir, output_callback=None: MegaRunResult(
+            True,
+            0,
+            stdout="done",
+        ),
     )
 
     first = runner.invoke(cli, ["download", "RJ001", "--yes"])

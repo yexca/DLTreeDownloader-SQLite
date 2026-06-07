@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from collections.abc import Sequence
 import csv
 from dataclasses import dataclass
@@ -396,6 +397,7 @@ def execute_download_plan(
     plan: DownloadPlan,
     *,
     config_path: Path = DEFAULT_CONFIG_PATH,
+    output_callback: Callable[[str], None] | None = None,
 ) -> DownloadRunSummary:
     config = load_config(config_path)
     downloaded_files: list[str] = []
@@ -403,7 +405,15 @@ def execute_download_plan(
 
     for index, link in enumerate(plan.selected_links, start=1):
         try:
-            result = run_mega_get(plan.mega_get, link.mega_url, plan.output_dir)
+            if output_callback is None:
+                result = run_mega_get(plan.mega_get, link.mega_url, plan.output_dir)
+            else:
+                result = run_mega_get(
+                    plan.mega_get,
+                    link.mega_url,
+                    plan.output_dir,
+                    output_callback=output_callback,
+                )
         except Exception as exc:
             message = f"mega-get failed for {link.file_name}: {exc}"
             _finish_download(config, plan.download_id, "failed", None, message)

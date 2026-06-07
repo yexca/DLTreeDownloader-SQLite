@@ -10,6 +10,7 @@ MEGAcmd 相关逻辑集中在 `dltree/mega.py`：
 - `command_available()` 只判断解析是否成功。
 - `check_login()` 使用解析后的 `mega-whoami` 检查登录状态。
 - `run_mega_get()` 使用解析后的 `mega-get` 执行下载。
+- `run_mega_get(..., output_callback=...)` 会实时读取 `mega-get` 的 stdout/stderr，并把输出片段交给 CLI 打印。
 
 应用层 `dltree/app.py` 不应直接用 `shutil.which()` 判断 MEGAcmd。`doctor` 应通过 `resolve_command()` 显示最终解析到的真实路径，便于用户排查 Windows PATH 问题。
 
@@ -48,12 +49,17 @@ cmd.exe /d /c call <command> <args...>
 
 这是为了兼容批处理入口文件。只有 `.cmd` 和 `.bat` 走这个包装；`.exe` 仍然直接调用。
 
+`mega-get` 下载时间可能很长。CLI 调用下载时会传入 `output_callback`，此时 `run_mega_get()` 使用 `subprocess.Popen()` 启动进程，并分别读取 stdout 和 stderr。读取到的内容会立即回调给 CLI，同时保留在 `MegaRunResult.stdout` 和 `MegaRunResult.stderr` 中，供失败摘要和测试断言使用。
+
+如果没有传入 `output_callback`，`run_mega_get()` 仍使用 `subprocess.run(..., capture_output=True)`，方便非交互调用和旧测试保持简单。
+
 ## 4. 测试要求
 
 MEGAcmd 测试不依赖真实账号和网络，应 mock：
 
 - `shutil.which()`
 - `subprocess.run()`
+- `subprocess.Popen()`，用于验证实时输出转发。
 - `resolve_command()` 或 Windows 安装目录环境变量
 
 需要覆盖：
@@ -61,5 +67,6 @@ MEGAcmd 测试不依赖真实账号和网络，应 mock：
 - PATH 中可以找到命令。
 - PATH 找不到，但 Windows 常见安装目录可以找到命令。
 - `check_login()` 使用解析后的真实路径。
+- `run_mega_get()` 能把 stdout/stderr 实时交给 `output_callback`。
 - `doctor` 显示解析后的真实路径。
 - 缺失 MEGAcmd 时仍给出清晰错误。

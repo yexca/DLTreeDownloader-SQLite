@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import io
 import subprocess
 
 from dltree import mega as mega_module
@@ -21,6 +22,7 @@ def test_check_login_calls_mega_whoami_and_reports_logged_in(monkeypatch):
         calls.append((args, kwargs))
         return Completed(0, stdout="Account: user@example.com")
 
+    monkeypatch.setattr(mega_module, "resolve_command", lambda executable: None)
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     result = check_login("mega-whoami", timeout_seconds=12)
@@ -129,6 +131,7 @@ def test_run_mega_get_uses_argument_list_and_returns_result(monkeypatch, tmp_pat
         calls.append((args, kwargs))
         return Completed(0, stdout="done")
 
+    monkeypatch.setattr(mega_module, "resolve_command", lambda executable: None)
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     result = run_mega_get(
@@ -166,3 +169,48 @@ def test_run_mega_get_returns_failed_result(monkeypatch, tmp_path):
     assert result.ok is False
     assert result.exit_code == 2
     assert result.stderr == "failed"
+
+
+def test_run_mega_get_streams_process_output(monkeypatch, tmp_path):
+    calls = []
+    output_chunks = []
+
+    class FakeProcess:
+        def __init__(self, args, **kwargs):
+            calls.append((args, kwargs))
+            self.stdout = io.StringIO("downloading\r100%\n")
+            self.stderr = io.StringIO("warning\n")
+
+        def wait(self, timeout=None):
+            assert timeout == 60
+            return 0
+
+    monkeypatch.setattr(mega_module, "resolve_command", lambda executable: None)
+    monkeypatch.setattr(subprocess, "Popen", FakeProcess)
+
+    result = run_mega_get(
+        "mega-get",
+        "https://mega.nz/file/item",
+        tmp_path,
+        timeout_seconds=60,
+        output_callback=output_chunks.append,
+    )
+
+    assert result.ok is True
+    assert result.exit_code == 0
+    assert result.stdout == "downloading\r100%\n"
+    assert result.stderr == "warning\n"
+    streamed_output = "".join(output_chunks)
+    assert "downloading\r100%\n" in streamed_output
+    assert "warning\n" in streamed_output
+    assert calls == [
+        (
+            ["mega-get", "https://mega.nz/file/item", str(tmp_path)],
+            {
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "text": True,
+                "bufsize": 1,
+            },
+        )
+    ]

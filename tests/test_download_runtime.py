@@ -365,3 +365,39 @@ def test_execute_download_plan_records_failure_and_stops_remaining_links(
     assert row["status"] == "failed"
     assert row["mega_exit_code"] == 7
     assert "main.zip" in row["message"]
+
+
+def test_execute_download_plan_passes_output_callback_to_mega_get(tmp_path, monkeypatch):
+    config_path = write_config(tmp_path)
+    seed_work(config_path, tmp_path)
+    callbacks = []
+
+    monkeypatch.setattr(app, "command_available", lambda executable: True)
+    monkeypatch.setattr(app, "check_login", lambda executable: MegaCheckResult(True))
+    monkeypatch.setattr(
+        app,
+        "get_disk_usage_for_output",
+        lambda output_dir: DiskUsage(output_dir, 10_000),
+    )
+
+    plan = prepare_download("RJ001", config_path=config_path)
+
+    def fake_mega_get(mega_get, mega_url, output_dir, output_callback=None):
+        callbacks.append(output_callback)
+        if output_callback is not None:
+            output_callback("progress\n")
+        return MegaRunResult(True, 0, stdout="progress\n")
+
+    monkeypatch.setattr(app, "run_mega_get", fake_mega_get)
+    output_chunks = []
+
+    summary = execute_download_plan(
+        plan,
+        config_path=config_path,
+        output_callback=output_chunks.append,
+    )
+
+    assert summary.status == "completed"
+    assert len(callbacks) == 1
+    assert callbacks[0] is not None
+    assert output_chunks == ["progress\n"]

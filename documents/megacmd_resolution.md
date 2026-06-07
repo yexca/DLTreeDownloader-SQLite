@@ -51,6 +51,8 @@ cmd.exe /d /c call <command> <args...>
 
 `mega-get` 下载时间可能很长。CLI 调用下载时会传入 `output_callback`，此时 `run_mega_get()` 使用 `subprocess.Popen()` 启动进程，并分别读取 stdout 和 stderr。读取到的内容会立即回调给 CLI，同时保留在 `MegaRunResult.stdout` 和 `MegaRunResult.stderr` 中，供失败摘要和测试断言使用。
 
+MEGAcmd 的 stdout/stderr 必须显式使用 `encoding="utf-8"` 和 `errors="replace"` 解码。不要依赖 Windows 默认编码；否则在中文系统上可能按 GBK 解码，遇到 MEGAcmd 进度或提示中的非 GBK 字节时，实时读取线程会抛出 `UnicodeDecodeError`。使用 `errors="replace"` 后，异常字节只会显示为替换字符，下载和输出转发会继续进行。
+
 如果没有传入 `output_callback`，`run_mega_get()` 仍使用 `subprocess.run(..., capture_output=True)`，方便非交互调用和旧测试保持简单。
 
 ## 4. 测试要求
@@ -68,5 +70,6 @@ MEGAcmd 测试不依赖真实账号和网络，应 mock：
 - PATH 找不到，但 Windows 常见安装目录可以找到命令。
 - `check_login()` 使用解析后的真实路径。
 - `run_mega_get()` 能把 stdout/stderr 实时交给 `output_callback`。
+- `check_login()`、普通 `run_mega_get()`、实时输出版 `run_mega_get()` 都使用 UTF-8 容错解码。
 - `doctor` 显示解析后的真实路径。
 - 缺失 MEGAcmd 时仍给出清晰错误。

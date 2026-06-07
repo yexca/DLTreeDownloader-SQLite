@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import threading
 
+_MEGACMD_OUTPUT_ENCODING = "utf-8"
+
 
 @dataclass(frozen=True)
 class MegaCheckResult:
@@ -60,6 +62,8 @@ def check_login(mega_whoami: str, timeout_seconds: int = 30) -> MegaCheckResult:
             check=False,
             capture_output=True,
             text=True,
+            encoding=_MEGACMD_OUTPUT_ENCODING,
+            errors="replace",
             timeout=timeout_seconds,
         )
     except FileNotFoundError:
@@ -107,6 +111,8 @@ def run_mega_get(
         check=False,
         capture_output=True,
         text=True,
+        encoding=_MEGACMD_OUTPUT_ENCODING,
+        errors="replace",
         timeout=timeout_seconds,
     )
     return MegaRunResult(
@@ -129,6 +135,8 @@ def _run_mega_get_streaming(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        encoding=_MEGACMD_OUTPUT_ENCODING,
+        errors="replace",
         bufsize=1,
     )
     stdout_parts: list[str] = []

@@ -98,6 +98,7 @@ mock：
 - `mega-get` 成功。
 - `mega-get` 失败。
 - `mega-get` 下载期间 stdout/stderr 能通过输出回调实时转发到 CLI。
+- MEGAcmd stdout/stderr 使用 UTF-8 容错解码，避免 Windows 默认编码导致读取线程报错。
 
 ## 6. 验收测试
 

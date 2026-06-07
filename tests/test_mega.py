@@ -36,6 +36,8 @@ def test_check_login_calls_mega_whoami_and_reports_logged_in(monkeypatch):
                 "check": False,
                 "capture_output": True,
                 "text": True,
+                "encoding": "utf-8",
+                "errors": "replace",
                 "timeout": 12,
             },
         )
@@ -151,6 +153,8 @@ def test_run_mega_get_uses_argument_list_and_returns_result(monkeypatch, tmp_pat
                 "check": False,
                 "capture_output": True,
                 "text": True,
+                "encoding": "utf-8",
+                "errors": "replace",
                 "timeout": 60,
             },
         )
@@ -210,6 +214,8 @@ def test_run_mega_get_streams_process_output(monkeypatch, tmp_path):
                 "stdout": subprocess.PIPE,
                 "stderr": subprocess.PIPE,
                 "text": True,
+                "encoding": "utf-8",
+                "errors": "replace",
                 "bufsize": 1,
             },
         )

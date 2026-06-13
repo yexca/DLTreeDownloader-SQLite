@@ -97,7 +97,12 @@ include_par2_by_default = false
 ```python
 def command_available(executable: str) -> bool: ...
 def check_login(mega_whoami: str, timeout_seconds: int = 30) -> MegaCheckResult: ...
-def run_mega_get(mega_get: str, mega_url: str, output_dir: Path, timeout_seconds: int | None = None) -> MegaRunResult: ...
+def run_mega_get(
+    mega_get: str,
+    mega_url: str,
+    output_dir: Path,
+    output_callback: Callable[[str], None] | None = None,
+) -> MegaRunResult: ...
 ```
 
 调用规则：

@@ -93,7 +93,6 @@ def run_mega_get(
     mega_get: str,
     mega_url: str,
     output_dir: Path,
-    timeout_seconds: int | None = None,
     output_callback: Callable[[str], None] | None = None,
 ) -> MegaRunResult:
     command = resolve_command(mega_get) or mega_get
@@ -102,7 +101,6 @@ def run_mega_get(
             command,
             mega_url,
             output_dir,
-            timeout_seconds,
             output_callback,
         )
 
@@ -113,7 +111,6 @@ def run_mega_get(
         text=True,
         encoding=_MEGACMD_OUTPUT_ENCODING,
         errors="replace",
-        timeout=timeout_seconds,
     )
     return MegaRunResult(
         ok=completed.returncode == 0,
@@ -127,7 +124,6 @@ def _run_mega_get_streaming(
     command: str,
     mega_url: str,
     output_dir: Path,
-    timeout_seconds: int | None,
     output_callback: Callable[[str], None],
 ) -> MegaRunResult:
     process = subprocess.Popen(
@@ -153,20 +149,7 @@ def _run_mega_get_streaming(
     stdout_thread.start()
     stderr_thread.start()
 
-    try:
-        exit_code = process.wait(timeout=timeout_seconds)
-    except subprocess.TimeoutExpired as exc:
-        process.kill()
-        exit_code = process.wait()
-        stdout_thread.join()
-        stderr_thread.join()
-        raise subprocess.TimeoutExpired(
-            exc.cmd,
-            exc.timeout,
-            output="".join(stdout_parts),
-            stderr="".join(stderr_parts),
-        ) from exc
-
+    exit_code = process.wait()
     stdout_thread.join()
     stderr_thread.join()
     return MegaRunResult(

@@ -140,7 +140,6 @@ def test_run_mega_get_uses_argument_list_and_returns_result(monkeypatch, tmp_pat
         "mega-get",
         "https://mega.nz/file/item",
         output_dir,
-        timeout_seconds=60,
     )
 
     assert result.ok is True
@@ -155,7 +154,6 @@ def test_run_mega_get_uses_argument_list_and_returns_result(monkeypatch, tmp_pat
                 "text": True,
                 "encoding": "utf-8",
                 "errors": "replace",
-                "timeout": 60,
             },
         )
     ]
@@ -185,8 +183,7 @@ def test_run_mega_get_streams_process_output(monkeypatch, tmp_path):
             self.stdout = io.StringIO("downloading\r100%\n")
             self.stderr = io.StringIO("warning\n")
 
-        def wait(self, timeout=None):
-            assert timeout == 60
+        def wait(self):
             return 0
 
     monkeypatch.setattr(mega_module, "resolve_command", lambda executable: None)
@@ -196,7 +193,6 @@ def test_run_mega_get_streams_process_output(monkeypatch, tmp_path):
         "mega-get",
         "https://mega.nz/file/item",
         tmp_path,
-        timeout_seconds=60,
         output_callback=output_chunks.append,
     )
 
